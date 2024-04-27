@@ -11,7 +11,8 @@ export default {
 		const placeId = await getPlaceIdFromCoords(lat, lon)
 		const type = get === 'hour' ? 'hourbyhour' : 'today'
 		const path = `https://weather.com/weather/${type}/l/${placeId}?unit=${unit}`
-		const resp = await fetch(path)
+		const iPhoneUserAgent = `Mozilla/5.0 (iPhone; U; CPU iPhone OS 4_1 like Mac OS X; en-us) AppleWebKit/532.9 (KHTML, like Gecko) Version/4.0.5 Mobile/8B117 Safari/6531.22.7 (compatible; Googlebot-Mobile/2.1; +http://www.google.com/bot.html)`
+		const resp = await fetch(path, { headers: { 'User-Agent': iPhoneUserAgent } })
 		let html = await resp.text()
 
 		html = html.slice(html.indexOf('</head>'))
