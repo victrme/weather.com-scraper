@@ -4,8 +4,12 @@ Weather.com uses Weather Underground under the hood.
 
 Weather Underground has the most accurate service and its API was one of the cheapest. It was then bought out by The Weather Company who was then bought out by IBM in 2016. IBM proceeded to obliterate its service in 2018. IBM sold The Weather Company to a private equity firm in 2023, estimated at more than $1B. We can safely assume weather.com will greatly suffer under these soulless sharks managment.
 
-In the meantime, enjoy a free weather.com API !
+In the meantime, enjoy a free weather.com API 🤗  
 https://weathercom-scraper.victr.workers.dev/
+
+#### Note
+
+This api may be subject to change. Do not use `*//*.victr.*` urls in production !
 
 ## Queries
 
