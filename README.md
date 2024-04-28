@@ -38,12 +38,41 @@ Getting information from `https://weather.com/weather/today/`
  */
 
 const example = {
-	current: 9,
-	feels: 9,
-	day: 12,
-	night: 7,
-	description: 'Cloudy',
+  current: 9,
+  feels: 9,
+  day: 12,
+  night: 7,
+  description: 'Cloudy',
 }
+```
+
+### Hour by hour
+
+Hour by hour forecast from `https://weather.com/weather/hourbyhour/`
+
+```js
+/**
+ * @typedef {Object[]} WeatherComHour
+ * @prop {number} timestamp - Forecast timestamp
+ * @prop {number} temp - Forecasted temperature
+ * @prop {string} rain - Forecasted chance of rain
+ * @prop {string} description - What we might see outside
+ */
+
+const example = [
+  {
+    timestamp: 1714324275446,
+    description: 'Scattered Showers',
+    temp: 16,
+    rain: '46%',
+  },
+  {
+    timestamp: 1714327875446,
+    description: 'Scattered Showers',
+    temp: 14,
+    rain: '47%',
+  },
+]
 ```
 
 ## Install

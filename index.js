@@ -9,6 +9,14 @@ import striptags from 'striptags'
  * @prop {string} description - What can we see outside right now
  */
 
+/**
+ * @typedef {Object[]} WeatherComHour
+ * @prop {number} timestamp - Forecast timestamp
+ * @prop {number} temp - Forecasted temperature
+ * @prop {string} rain - Forecasted chance of rain
+ * @prop {string} description - What we might see outside
+ */
+
 export default {
 	async fetch(request, env, ctx) {
 		const url = new URL(request.url)
@@ -18,10 +26,10 @@ export default {
 		const lon = url.searchParams.get('lon')
 		const id = url.searchParams.get('id')
 
-		const placeId = id ?? (await getPlaceIdFromCoords(lat, lon))
-		const html = await getWeatherHTML(placeId, get, unit)
-
 		if (get === 'today') {
+			const placeId = id ?? (await getPlaceIdFromCoords(lat, lon))
+			const html = await getWeatherHTML(placeId, 'today', unit)
+
 			const json = parseToday(html)
 			const body = JSON.stringify(json)
 			const headers = { 'content-type': 'application/json' }
@@ -30,7 +38,14 @@ export default {
 		}
 
 		if (get === 'hour') {
-			//
+			const placeId = id ?? (await getPlaceIdFromCoords(lat, lon))
+			const html = await getWeatherHTML(placeId, 'hour', unit)
+
+			const json = parseHour(html)
+			const body = JSON.stringify(json)
+			const headers = { 'content-type': 'application/json' }
+
+			return new Response(body, { headers })
 		}
 
 		return new Response('Wrong weather request, either "today" or "hour"', {
@@ -42,7 +57,7 @@ export default {
 // Parse
 
 /**
- * Use the HTML body from "weather.com/weather/today" and returns JSON
+ * Use the HTML body from "weather.com/weather/today"
  * @param {string} html
  * @returns {WeatherComToday}
  */
@@ -75,6 +90,44 @@ function parseToday(html) {
 	return result
 }
 
+/**
+ * Use the HTML body from "weather.com/weather/hourbyhour"
+ * @param {string} html
+ * @returns {WeatherComHour}
+ */
+function parseHour(html) {
+	/** @type {WeatherComHour} */
+	let result = []
+	let lasthour = 0
+	let date = new Date()
+
+	html = html.slice(
+		html.indexOf('HourlyForecast--DisclosureList--'),
+		html.indexOf('HourlyForecast--footerButton--')
+	)
+
+	html = html.slice(html.indexOf('">') + 2)
+
+	for (let summary of html.split('<summary')) {
+		summary = summary.slice(summary.indexOf('">') + 2, summary.indexOf('</summary>'))
+		summary = striptags(summary, undefined, '\n')
+
+		const arr = summary.split('\n').filter((val) => !!val && !val.includes('Arrow'))
+
+		const timestamp = date.getTime()
+		const description = arr[1]
+		const temp = parseInt(arr[2])
+		const rain = arr[5]
+
+		if (timestamp !== undefined && temp !== undefined && description && rain) {
+			result.push({ timestamp, description, temp, rain })
+			date.setHours(date.getHours() + 1)
+		}
+	}
+
+	return result
+}
+
 // Requests
 
 /**
@@ -83,11 +136,20 @@ function parseToday(html) {
  * @returns {Promise<string>}
  */
 async function getPlaceIdFromCoords(lat, lon) {
-	const body = `[{"name":"getSunV3LocationSearchUrlConfig","params":{"query":"${lat}, ${lon}","language":"en-US","locationType":"locale"}}]`
+	const post = [
+		{
+			name: 'getSunV3LocationSearchUrlConfig',
+			params: {
+				query: `${lat}, ${lon}`,
+				language: 'en-US',
+				locationType: 'locale',
+			},
+		},
+	]
 
 	const resp = await fetch('https://weather.com/api/v1/p/redux-dal', {
 		method: 'POST',
-		body: body,
+		body: JSON.stringify(post),
 		headers: {
 			'content-type': 'application/json',
 		},
