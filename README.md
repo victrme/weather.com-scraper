@@ -13,12 +13,13 @@ This api may be subject to change. Do not use `https://*.victr.*` urls in produc
 
 ## Queries
 
-| Query | Type        | Description                         |
-| ----- | ----------- | ----------------------------------- |
-| lat   | Float       | Latitude coordinates                |
-| lon   | Float       | Longitude coordinates               |
-| get   | today, hour | Get todays weather, or hour by hour |
-| unit  | m, f        | Use metric or football fields       |
+| Query | Type              | Description                                       |
+| ----- | ----------------- | ------------------------------------------------- |
+| lat   | Float             | Latitude coordinates                              |
+| lon   | Float             | Longitude coordinates                             |
+| get   | "today" or "hour" | Get todays weather, or hour by hour               |
+| unit  | "m" or "f"        | Use metric or football fields                     |
+| id    | string            | A 64 chars hash of a location used by weather.com |
 
 ## Returns
 
@@ -26,7 +27,7 @@ This api may be subject to change. Do not use `https://*.victr.*` urls in produc
 
 Getting information from `https://weather.com/weather/today/`
 
-```ts
+```js
 /**
  * @typedef {Object} WeatherComToday
  * @prop {number} current - Recorded current temperature

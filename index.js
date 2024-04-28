@@ -16,8 +16,9 @@ export default {
 		const get = url.searchParams.get('get') ?? 'today'
 		const lat = url.searchParams.get('lat')
 		const lon = url.searchParams.get('lon')
+		const id = url.searchParams.get('id')
 
-		const placeId = await getPlaceIdFromCoords(lat, lon)
+		const placeId = id ?? (await getPlaceIdFromCoords(lat, lon))
 		const html = await getWeatherHTML(placeId, get, unit)
 
 		if (get === 'today') {
