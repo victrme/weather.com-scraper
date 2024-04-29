@@ -11,8 +11,17 @@ import striptags from 'striptags'
 
 /**
  * @typedef {Object[]} WeatherComHour
- * @prop {number} timestamp - Forecast timestamp
+ * @prop {number} timestamp - Hourly forecast timestamp
  * @prop {number} temp - Forecasted temperature
+ * @prop {string} rain - Forecasted chance of rain
+ * @prop {string} description - What we might see outside
+ */
+
+/**
+ * @typedef {Object[]} WeatherComDay
+ * @prop {number} timestamp - Daily forecast timestamp
+ * @prop {number} day - Forecasted temperature for the day
+ * @prop {number} night - Forecasted temperature for the night
  * @prop {string} rain - Forecasted chance of rain
  * @prop {string} description - What we might see outside
  */
@@ -26,30 +35,21 @@ export default {
 		const lon = url.searchParams.get('lon')
 		const id = url.searchParams.get('id')
 
-		if (get === 'today') {
-			const placeId = id ?? (await getPlaceIdFromCoords(lat, lon))
-			const html = await getWeatherHTML(placeId, 'today', unit)
-
-			const json = parseToday(html)
-			const body = JSON.stringify(json)
-			const headers = { 'content-type': 'application/json' }
-
-			return new Response(body, { headers })
+		if (!get.match(/hour|day|today|/)) {
+			const error = 'Wrong weather request, either "today" or "hour"'
+			return new Response(error, { status: 400 })
 		}
 
-		if (get === 'hour') {
-			const placeId = id ?? (await getPlaceIdFromCoords(lat, lon))
-			const html = await getWeatherHTML(placeId, 'hour', unit)
+		const placeId = id ?? (await getPlaceIdFromCoords(lat, lon))
+		const html = await getWeatherHTML(placeId, get, unit)
+		let json
 
-			const json = parseHour(html)
-			const body = JSON.stringify(json)
-			const headers = { 'content-type': 'application/json' }
+		if (get === 'today') json = parseToday(html)
+		if (get === 'hour') json = parseHour(html)
+		if (get === 'day') json = parseTenDay(html)
 
-			return new Response(body, { headers })
-		}
-
-		return new Response('Wrong weather request, either "today" or "hour"', {
-			status: 400,
+		return new Response(JSON.stringify(json), {
+			headers: { 'content-type': 'application/json' },
 		})
 	},
 }
@@ -96,32 +96,93 @@ function parseToday(html) {
  * @returns {WeatherComHour}
  */
 function parseHour(html) {
+	let date = new Date()
+
 	/** @type {WeatherComHour} */
 	let result = []
-	let lasthour = 0
-	let date = new Date()
 
 	html = html.slice(
 		html.indexOf('HourlyForecast--DisclosureList--'),
 		html.indexOf('HourlyForecast--footerButton--')
 	)
 
-	html = html.slice(html.indexOf('">') + 2)
+	date.getMinutes(0)
+	date.getSeconds(0)
+	date.getMilliseconds(0)
 
 	for (let summary of html.split('<summary')) {
 		summary = summary.slice(summary.indexOf('">') + 2, summary.indexOf('</summary>'))
 		summary = striptags(summary, undefined, '\n')
 
-		const arr = summary.split('\n').filter((val) => !!val && !val.includes('Arrow'))
+		const matches = (val) => val !== '' && !val.includes('Arrow')
+		const arr = summary.split('\n').filter(matches)
 
 		const timestamp = date.getTime()
 		const description = arr[1]
 		const temp = parseInt(arr[2])
 		const rain = arr[5]
+		const isNumberTemp = Number.isNaN(temp) === false
 
-		if (timestamp !== undefined && temp !== undefined && description && rain) {
-			result.push({ timestamp, description, temp, rain })
+		if (timestamp && description && rain && isNumberTemp) {
 			date.setHours(date.getHours() + 1)
+
+			result.push({
+				timestamp,
+				description,
+				temp,
+				rain,
+			})
+		}
+	}
+
+	return result
+}
+
+/**
+ * Use the HTML body from "weather.com/weather/tenday"
+ * @param {string} html
+ * @returns {WeatherComDay}
+ */
+function parseTenDay(html) {
+	let date = new Date()
+
+	/** @type {WeatherComDay} */
+	let result = []
+
+	html = html.slice(
+		html.indexOf('DailyForecast--DisclosureList--'),
+		html.indexOf('DynamicMap--dynamicMapContainer--')
+	)
+
+	date.getMinutes(0)
+	date.getSeconds(0)
+	date.getMilliseconds(0)
+
+	for (let summary of html.split('<summary')) {
+		summary = summary.slice(summary.indexOf('">') + 2, summary.indexOf('</summary>'))
+		summary = striptags(summary, undefined, '\n')
+
+		const matches = (v) => v !== '' && v !== '/' && v !== '°' && !v.includes('Arrow')
+		const arr = summary.split('\n').filter(matches)
+
+		const timestamp = date.getTime()
+		const description = arr[1]
+		const day = parseInt(arr[2])
+		const night = parseInt(arr[3])
+		const rain = arr[5]
+		const isNumberDay = Number.isNaN(day) === false
+		const isNumberNight = Number.isNaN(night) === false
+
+		if (timestamp && description && rain && isNumberDay && isNumberNight) {
+			date.setDate(date.getDate() + 1)
+
+			result.push({
+				timestamp,
+				description,
+				day,
+				night,
+				rain,
+			})
 		}
 	}
 
@@ -171,19 +232,20 @@ async function getPlaceIdFromCoords(lat, lon) {
  *
  * @param {string} id - Place ID used by weather.com to store each locations
  * @param {"m" | "f"} unit - Celsius or Farenheit, they use metric or football fields
- * @param {"today" | "hour"} type - Types of weather, using the same name as their site
+ * @param {"today" | "hour" | "day"} type - Types of weather, using a smaller naming as their site
  * @returns {Promise<string>}
  */
 async function getWeatherHTML(id, type, unit) {
-	type = type === 'hour' ? 'hourbyhour' : 'today'
+	if (type === 'day') type = 'tenday'
+	if (type === 'hour') type = 'hourbyhour'
 
 	const path = `https://weather.com/weather/${type}/l/${id}?unit=${unit}`
-	const iPhoneUserAgent = `Mozilla/5.0 (iPhone; U; CPU iPhone OS 4_1 like Mac OS X; en-us) AppleWebKit/532.9 (KHTML, like Gecko) Version/4.0.5 Mobile/8B117 Safari/6531.22.7 (compatible; Googlebot-Mobile/2.1; +http://www.google.com/bot.html)`
+	const firefoxAndroid = 'Mozilla/5.0 (Android 14; Mobile; rv:109.0) Gecko/124.0 Firefox/124.0'
 
 	const resp = await fetch(path, {
 		headers: {
 			'Accept-Language': 'en,en-US;q=0.9',
-			'User-Agent': iPhoneUserAgent,
+			'User-Agent': firefoxAndroid,
 		},
 	})
 
