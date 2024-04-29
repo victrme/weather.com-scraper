@@ -13,19 +13,20 @@ This api may be subject to change. Do not use `https://*.victr.*` urls in produc
 
 ## Queries
 
-| Query | Type              | Description                                       |
-| ----- | ----------------- | ------------------------------------------------- |
-| lat   | Float             | Latitude coordinates                              |
-| lon   | Float             | Longitude coordinates                             |
-| get   | "today" or "hour" | Get todays weather, or hour by hour               |
-| unit  | "m" or "f"        | Use metric or football fields                     |
-| id    | string            | A 64 chars hash of a location used by weather.com |
+| Query | Type                      | Description                                       |
+| ----- | ------------------------- | ------------------------------------------------- |
+| lat   | Float                     | Latitude coordinates                              |
+| lon   | Float                     | Longitude coordinates                             |
+| get   | "today", "hour", or "day" | Get todays weather, hour by hour, or ten day      |
+| unit  | "m" or "f"                | Use metric or football fields                     |
+| id    | string                    | A 64 chars hash of a location used by weather.com |
 
 ## Returns
 
 ### Today
 
-Getting information from `https://weather.com/weather/today/`
+Getting information from `https://weather.com/weather/today/`  
+[Live example](https://weather.victr.me/)
 
 ```js
 /**
@@ -48,7 +49,8 @@ const example = {
 
 ### Hour by hour
 
-Hour by hour forecast from `https://weather.com/weather/hourbyhour/`
+Hour by hour forecast from `https://weather.com/weather/hourbyhour/`  
+[Live example](https://weather.victr.me?get=hour)
 
 ```js
 /**
@@ -75,17 +77,94 @@ const example = [
 ]
 ```
 
-## Install
+### Ten day
 
-Using Cloudflare Workers:
+Hour by hour forecast from `https://weather.com/weather/tenday/`. Slightly different from `hour`, watch out !  
+[Live example](https://weather.victr.me?get=day)
+
+```js
+/**
+ * @typedef {Object[]} WeatherComDay
+ * @prop {number} timestamp - Daily forecast timestamp
+ * @prop {number} day - Forecasted temperature for the day
+ * @prop {number} night - Forecasted temperature for the night
+ * @prop {string} rain - Forecasted chance of rain
+ * @prop {string} description - What we might see outside
+ */
+
+const example = [
+  {
+    timestamp: 1714378064551,
+    description: 'Partly Cloudy',
+    day: 20,
+    night: 12,
+    rain: '2%',
+  },
+  {
+    timestamp: 1714464464551,
+    description: 'Scattered Showers',
+    day: 19,
+    night: 12,
+    rain: '57%',
+  },
+]
+```
+
+## Types
+
+Here is a namespace to use in typescript codebases
+
+```ts
+namespace WeatherCom {
+  export type Today = {
+    current: number
+    feels: number
+    day: number
+    night: number
+    description: string
+  }
+
+  export type Hour = {
+    timestamp: number
+    description: string
+    temp: number
+    rain: string
+  }[]
+
+  export type Day = {
+    timestamp: number
+    description: string
+    day: number
+    night: number
+    rain: string
+  }[]
+}
+```
+
+## Deploy your own
+
+Using Cloudflare Workers, you can get 100k request per day without even adding a payment option. Deploying this worker is very simple:
+
+-   Install Node on your system: https://nodejs.org/en/download
+-   Create an account on Cloudflare in https://dash.cloudflare.com
+-   Download this repo as a .zip by clicking the green button
+-   Extract these files and open a terminal in this folder
+-   Run this command `npm install --global wrangler@latest`
+-   And deploy with `wrangler deploy`
 
 ```bash
-# Install wrangler and its dependencies
-npm install
+npm install --global wrangler@latest
 
-# Should open http://127.0.0.1:8787
-npm dev
+# ... npm stuff
+#
+# changed 73 packages in 9s
 
-# Classic deploy
-npm deploy
+wrangler deploy
+
+# Attempting to login via OAuth...
+#
+# Total Upload: 12.99 KiB / gzip: 3.58 KiB
+# Uploaded weathercom-scraper (3.41 sec)
+# Published weathercom-scraper (1.31 sec)
+#   https://weathercom-scraper.your-account.workers.dev
 ```
